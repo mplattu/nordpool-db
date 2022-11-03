@@ -87,6 +87,9 @@ class TestGeneral(unittest.TestCase):
 
         result = prices_spot.hourly(areas=['FI'])
         self.assertEqual(result['currency'], 'EUR')
+    
+    def test_datetime_to_sqlstring(self):
+        self.assertEqual()
 
 
 if __name__ == '__main__':

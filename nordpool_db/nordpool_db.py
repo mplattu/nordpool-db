@@ -13,7 +13,10 @@ class NordpoolDb:
     
     def __del__(self):
         self.sqlite_con.close()
-        
+    
+    def datetime_to_sqlstring(self, datetime_param):
+        return datetime_param.strftime('%Y-%m-%d %H-%M-%S')
+
     def update_data(self, new_nordpool_data):
         '''
         Update database with given new_nordpool_data. This is a output of
@@ -24,4 +27,13 @@ class NordpoolDb:
         '''
 
         pprint(new_nordpool_data)
+
+        for this_area in new_nordpool_data['areas'].keys():
+            print(f"This area: {this_area}\n")
+            for this_value in new_nordpool_data[this_area]['values']:
+                sql_datetime_start = self.datetime_to_sqlstring(this_value['start'])
+                sql_datetime_end = self.datetime_to_sqlstring(this_value['end'])
+                value = this_value['value']
+
+        print(f"This currency: {new_nordpool_data['currency']}\n")
     
