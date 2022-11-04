@@ -5,6 +5,7 @@ import tempfile
 import requests
 import http.server
 import threading
+import datetime
 
 from nordpool import elspot
 from nordpool_db import NordpoolDb
@@ -64,11 +65,21 @@ class TestGeneral(unittest.TestCase):
         self.server.shutdown()
         self.thread.join()
 
-    def test_create(self):
+    def test_create_and_simple_unit_tests(self):
         tmp_handle, tmp_name = tempfile.mkstemp(prefix='npdb_test_')
         os.close(tmp_handle)
 
         npdb = NordpoolDb(tmp_name)
+
+        # datetime_to_sqlstring()
+        test_cases = [
+            [datetime.datetime(1971, 9, 11), '1971-09-11 00:00:00'],
+            [datetime.datetime(2034, 12, 1, 3, 4, 5), '2034-12-01 03:04:05'],
+        ]
+
+        for this_case in test_cases:
+            self.assertEqual(npdb.datetime_to_sqlstring(this_case[0]), this_case[1])
+
         del npdb
 
         self.assertTrue(os.path.exists(tmp_name))
@@ -88,9 +99,27 @@ class TestGeneral(unittest.TestCase):
         result = prices_spot.hourly(areas=['FI'])
         self.assertEqual(result['currency'], 'EUR')
     
-    def test_datetime_to_sqlstring(self):
-        self.assertEqual()
+    def test_store_and_retrieve_prices(self):
+        prices_spot = elspot.Prices()
+        prices_spot.API_URL = 'http://localhost:4141/%i'
 
+        tmp_handle, tmp_name = tempfile.mkstemp(prefix='npdb_test_')
+        os.close(tmp_handle)
+
+        npdb = NordpoolDb(tmp_name)
+
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.date.today()))
+
+        test_cases = [
+            [datetime.datetime(2022, 10, 31, 4, 20, 0), 153.17],
+            [datetime.datetime(2022, 10, 31, 4, 0, 0), 153.17],
+            [datetime.datetime(2022, 11, 3, 12, 0, 0), None],
+        ]
+
+        for this_case in test_cases:
+            self.assertEqual(npdb.get_price_value('FI', this_case[0]), this_case[1])
+
+        os.remove(tmp_name)
 
 if __name__ == '__main__':
     unittest.main()
