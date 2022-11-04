@@ -11,16 +11,13 @@ from nordpool import elspot
 from nordpool_db import NordpoolDb
 
 import http.server # Our http server handler for http requests
-import socketserver # Establish the TCP Socket connections
-from urllib.parse import urlparse
 from urllib.parse import quote
 
 PORT = 9000
 
 class StoppableHTTPServerRequestHandler(http.server.SimpleHTTPRequestHandler):
     def parse_path_from_uri(self, uri):
-        parsed_uri = urlparse(self.path)
-        return quote(parsed_uri.path, safe='/')
+        return quote(self.path, safe='/?&=')
 
     def do_GET(self):
         file_path = "test/httpd%s" % self.parse_path_from_uri(self.path)
@@ -96,7 +93,7 @@ class TestGeneral(unittest.TestCase):
         prices_spot = elspot.Prices()
         prices_spot.API_URL = 'http://localhost:4141/%i'
 
-        result = prices_spot.hourly(areas=['FI'])
+        result = prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,3))
         self.assertEqual(result['currency'], 'EUR')
     
     def test_store_and_retrieve_prices(self):
@@ -108,12 +105,15 @@ class TestGeneral(unittest.TestCase):
 
         npdb = NordpoolDb(tmp_name)
 
-        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.date.today()))
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,3)))
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,2)))
 
         test_cases = [
-            [datetime.datetime(2022, 10, 31, 4, 20, 0), 153.17],
-            [datetime.datetime(2022, 10, 31, 4, 0, 0), 153.17],
-            [datetime.datetime(2022, 11, 3, 12, 0, 0), None],
+            [datetime.datetime(2022, 11, 2, 1, 20, 0), 100.9],
+            [datetime.datetime(2022, 11, 2, 1, 0, 0), 100.9],
+            [datetime.datetime(2022, 11, 3, 1, 20, 0), 29.24],
+            [datetime.datetime(2022, 11, 3, 1, 0, 0), 29.24],
+            [datetime.datetime(2022, 11, 1, 12, 0, 0), None],
         ]
 
         for this_case in test_cases:
