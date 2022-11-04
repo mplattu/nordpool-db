@@ -54,7 +54,6 @@ class NordpoolDb:
         '''
 
         for this_area in new_nordpool_data['areas'].keys():
-            print(f"This area: {this_area}\n")
             for this_value in new_nordpool_data['areas'][this_area]['values']:
                 self.db_add_price_value(this_area, this_value['start'], this_value['end'], this_value['value'])
     
