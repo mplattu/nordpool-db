@@ -10,6 +10,7 @@ class NordpoolDb:
     def __init__(self, sqlite_path):
         self.sqlite_path = sqlite_path
         self.sqlite_con = sqlite3.connect(sqlite_path)
+        self.PRICE_VALUE_IS_NOT_DEFINED = float('inf')
 
         self.create_database()
 
@@ -34,6 +35,9 @@ class NordpoolDb:
         return datetime_param.strftime('%Y-%m-%d %H:%M:%S')
 
     def db_add_or_update_price_value(self, area, datetime_start, datetime_end, price_value):
+        if price_value == self.PRICE_VALUE_IS_NOT_DEFINED:
+            return
+
         datetime_start_str = self.datetime_to_sqlstring(datetime_start)
         datetime_end_str = self.datetime_to_sqlstring(datetime_end)
 
