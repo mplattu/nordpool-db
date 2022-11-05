@@ -33,15 +33,18 @@ class NordpoolDb:
     def datetime_to_sqlstring(self, datetime_param):
         return datetime_param.strftime('%Y-%m-%d %H:%M:%S')
 
-    def db_add_price_value(self, area, datetime_start, datetime_end, price_value):
+    def db_add_or_update_price_value(self, area, datetime_start, datetime_end, price_value):
         datetime_start_str = self.datetime_to_sqlstring(datetime_start)
         datetime_end_str = self.datetime_to_sqlstring(datetime_end)
 
         cursor = self.sqlite_con.cursor()
 
-        sql = "INSERT INTO `prices` (`area`, `start`, `end`, `value`) VALUES (?, ?, ?, ?);"
+        sql_update = "UPDATE `prices` SET `value`=? WHERE `area`=? AND `start`=? AND `end`=?"
+        cursor.execute(sql_update, (price_value, area, datetime_start_str, datetime_end_str))
+        if cursor.rowcount == 0:
+            sql_insert = "INSERT INTO `prices` (`area`, `start`, `end`, `value`) VALUES (?, ?, ?, ?);"
+            cursor.execute(sql_insert, (area, datetime_start_str, datetime_end_str, price_value))
 
-        cursor.execute(sql, (area, datetime_start_str, datetime_end_str, price_value))
         self.sqlite_con.commit()
 
     def update_data(self, new_nordpool_data):
@@ -55,7 +58,7 @@ class NordpoolDb:
 
         for this_area in new_nordpool_data['areas'].keys():
             for this_value in new_nordpool_data['areas'][this_area]['values']:
-                self.db_add_price_value(this_area, this_value['start'], this_value['end'], this_value['value'])
+                self.db_add_or_update_price_value(this_area, this_value['start'], this_value['end'], this_value['value'])
     
     def get_price_value(self, area, datetime_param):
         datetime_str = self.datetime_to_sqlstring(datetime_param)

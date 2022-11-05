@@ -107,6 +107,8 @@ class TestGeneral(unittest.TestCase):
 
         npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,3)))
         npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,2)))
+        # Do this again to make sure you can add same dataset over and over again
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,2)))
 
         test_cases = [
             [datetime.datetime(2022, 11, 2, 1, 20, 0), 100.9],
@@ -118,6 +120,17 @@ class TestGeneral(unittest.TestCase):
 
         for this_case in test_cases:
             self.assertEqual(npdb.get_price_value('FI', this_case[0]), this_case[1])
+        
+        npdb.db_add_or_update_price_value(
+            'FI',
+            datetime.datetime(2022, 11, 2, 1, 0, 0),
+            datetime.datetime(2022, 11, 2, 2, 0, 0),
+            200.5
+        )
+
+        self.assertEqual(npdb.get_price_value('FI', datetime.datetime(2022, 11, 2, 1, 30, 0)), 200.5)
+
+        del npdb
 
         os.remove(tmp_name)
 
