@@ -5,7 +5,8 @@ import tempfile
 import requests
 import http.server
 import threading
-import datetime
+from datetime import datetime
+import pytz
 
 from nordpool import elspot
 from nordpool_db import NordpoolDb
@@ -57,6 +58,8 @@ class TestGeneral(unittest.TestCase):
         self.thread = threading.Thread(None, self.server.run)
         self.thread.start()
 
+        self.TZ_DEFAULT = pytz.timezone('UTC')
+
     @classmethod
     def tearDownClass(self):
         self.server.shutdown()
@@ -70,8 +73,8 @@ class TestGeneral(unittest.TestCase):
 
         # datetime_to_sqlstring()
         test_cases = [
-            [datetime.datetime(1971, 9, 11), '1971-09-11 00:00:00'],
-            [datetime.datetime(2034, 12, 1, 3, 4, 5), '2034-12-01 03:04:05'],
+            [datetime(1971, 9, 11), '1971-09-11 00:00:00'],
+            [datetime(2034, 12, 1, 3, 4, 5), '2034-12-01 03:04:05'],
         ]
 
         for this_case in test_cases:
@@ -93,7 +96,7 @@ class TestGeneral(unittest.TestCase):
         prices_spot = elspot.Prices()
         prices_spot.API_URL = 'http://localhost:4141/%i'
 
-        result = prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,3))
+        result = prices_spot.hourly(areas=['FI'], end_date=datetime(2022,11,3))
         self.assertEqual(result['currency'], 'EUR')
     
     def test_store_and_retrieve_prices(self):
@@ -105,17 +108,26 @@ class TestGeneral(unittest.TestCase):
 
         npdb = NordpoolDb(tmp_name)
 
-        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,3)))
-        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,2)))
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime(2022,11,3)))
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime(2022,11,2)))
         # Do this again to make sure you can add same dataset over and over again
-        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime.datetime(2022,11,2)))
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime(2022,11,2)))
+
+        TZ_EET = pytz.timezone('EET')
 
         test_cases = [
-            [datetime.datetime(2022, 11, 2, 1, 20, 0), 100.9],
-            [datetime.datetime(2022, 11, 2, 1, 0, 0), 100.9],
-            [datetime.datetime(2022, 11, 3, 1, 20, 0), 29.24],
-            [datetime.datetime(2022, 11, 3, 1, 0, 0), 29.24],
-            [datetime.datetime(2022, 11, 1, 12, 0, 0), None],
+            # Timezone support
+            [self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 1, 20, 0)), 100.9],
+            [TZ_EET.localize(datetime(2022, 11, 2, 1, 20, 0)), 106.38],
+
+            # Even hour
+            [self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 1, 0, 0)), 100.9],
+ 
+            # Different date than the previous one
+            [self.TZ_DEFAULT.localize(datetime(2022, 11, 3, 1, 20, 0)), 29.24],
+
+            # Not in the dataset
+            [self.TZ_DEFAULT.localize(datetime(2022, 11, 1, 12, 0, 0)), None],
         ]
 
         for this_case in test_cases:
@@ -123,16 +135,85 @@ class TestGeneral(unittest.TestCase):
         
         npdb.db_add_or_update_price_value(
             'FI',
-            datetime.datetime(2022, 11, 2, 1, 0, 0),
-            datetime.datetime(2022, 11, 2, 2, 0, 0),
+            datetime(2022, 11, 2, 1, 0, 0),
+            datetime(2022, 11, 2, 2, 0, 0),
             200.5
         )
 
-        self.assertEqual(npdb.get_price_value('FI', datetime.datetime(2022, 11, 2, 1, 30, 0)), 200.5)
+        self.assertEqual(npdb.get_price_value('FI', self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 1, 30, 0))), 200.5)
 
         del npdb
 
         os.remove(tmp_name)
+    
+    def test_price_rank(self):
+        prices_spot = elspot.Prices()
+        prices_spot.API_URL = 'http://localhost:4141/%i'
+
+        tmp_handle, tmp_name = tempfile.mkstemp(prefix='npdb_test_')
+        os.close(tmp_handle)
+
+        npdb = NordpoolDb(tmp_name)
+
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime(2022,11,3)))
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime(2022,11,2)))
+
+        TZ_EET = pytz.timezone('EET')
+
+        test_cases = [
+            # Check timezone support
+            [
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 16, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 19, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 17, 30)),
+                (2, 3)
+            ],
+            [
+                TZ_EET.localize(datetime(2022, 11, 2, 16, 0)),
+                TZ_EET.localize(datetime(2022, 11, 2, 19, 0)),
+                TZ_EET.localize(datetime(2022, 11, 2, 17, 30)),
+                (3, 3)
+            ],
+
+
+            [
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 5, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 8, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 7, 0)),
+                (1, 3)
+            ],
+
+            # Observation period stretches over midnight
+            [
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 0, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 3, 0, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 3, 20)),
+                (6, 24)
+            ],
+
+            # Target time is not in the observation period
+            [
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 5, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 3, 6, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 1, 0, 0)),
+                (None, 25)
+            ],
+
+            [
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 5, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 3, 6, 0)),
+                self.TZ_DEFAULT.localize(datetime(2022, 11, 2, 6, 30)),
+                (24, 25)
+            ],
+        ]
+
+        for this_case in test_cases:
+            self.assertEqual(npdb.get_price_rank('FI', this_case[0], this_case[1], this_case[2]), this_case[3])
+
+        del npdb
+
+        os.remove(tmp_name)
+
 
 if __name__ == '__main__':
     unittest.main()
