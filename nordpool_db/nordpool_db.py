@@ -30,7 +30,8 @@ class NordpoolDb:
                     [area] TEXT,
                     [start] DATETIME,
                     [end] DATETIME,
-                    [value] FLOAT
+                    [value] FLOAT,
+                    [updated] DATETIME
                 )
             ''')
         self.sqlite_con.commit()
@@ -44,14 +45,15 @@ class NordpoolDb:
 
         datetime_start_str = self.datetime_to_sqlstring(datetime_start)
         datetime_end_str = self.datetime_to_sqlstring(datetime_end)
+        datetime_now_str = self.datetime_to_sqlstring(datetime.utcnow())
 
         cursor = self.sqlite_con.cursor()
 
         sql_update = "UPDATE `prices` SET `value`=? WHERE `area`=? AND `start`=? AND `end`=?"
         cursor.execute(sql_update, (price_value, area, datetime_start_str, datetime_end_str))
         if cursor.rowcount == 0:
-            sql_insert = "INSERT INTO `prices` (`area`, `start`, `end`, `value`) VALUES (?, ?, ?, ?);"
-            cursor.execute(sql_insert, (area, datetime_start_str, datetime_end_str, price_value))
+            sql_insert = "INSERT INTO `prices` (`area`, `start`, `end`, `value`, `updated`) VALUES (?, ?, ?, ?, ?);"
+            cursor.execute(sql_insert, (area, datetime_start_str, datetime_end_str, price_value, datetime_now_str))
 
         self.sqlite_con.commit()
 
@@ -110,3 +112,25 @@ class NordpoolDb:
                 observed_rank = observed_row_count
 
         return (observed_rank, observed_row_count)
+
+    def get_seconds_from_last_update(self, area):
+        cursor = self.sqlite_con.cursor()
+
+        sql = "SELECT `updated` FROM `prices` WHERE `area`=? ORDER BY `updated` DESC LIMIT 1"
+
+        cursor.execute(sql, (area,))
+
+        updated_utc_str = None
+
+        for row in cursor:
+            updated_utc_str = row[0]
+        
+        if updated_utc_str is None:
+            return None
+
+        updated_utc = self.NORDPOOL_TZ.localize(datetime.strptime(updated_utc_str, '%Y-%m-%d %H:%M:%S'))
+        now_utc = self.NORDPOOL_TZ.localize(datetime.utcnow())
+        diff = now_utc - updated_utc
+
+        return diff.total_seconds()
+

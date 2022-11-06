@@ -7,6 +7,7 @@ import http.server
 import threading
 from datetime import datetime
 import pytz
+import time
 
 from nordpool import elspot
 from nordpool_db import NordpoolDb
@@ -213,6 +214,31 @@ class TestGeneral(unittest.TestCase):
         del npdb
 
         os.remove(tmp_name)
+    
+    def test_get_seconds_from_last_update(self):
+        prices_spot = elspot.Prices()
+        prices_spot.API_URL = 'http://localhost:4141/%i'
+
+        tmp_handle, tmp_name = tempfile.mkstemp(prefix='npdb_test_')
+        os.close(tmp_handle)
+
+        npdb = NordpoolDb(tmp_name)
+
+        self.assertIsNone(npdb.get_seconds_from_last_update('FI'))
+
+        npdb.update_data(prices_spot.hourly(areas=['FI'], end_date=datetime(2022,11,3)))
+
+        self.assertIsNotNone(npdb.get_seconds_from_last_update('FI'))
+        self.assertTrue(npdb.get_seconds_from_last_update('FI') < 2)
+
+        time.sleep(5)
+
+        self.assertTrue(npdb.get_seconds_from_last_update('FI') >= 5)
+
+        del npdb
+
+        os.remove(tmp_name)
+
 
 
 if __name__ == '__main__':
