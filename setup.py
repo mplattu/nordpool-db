@@ -15,4 +15,6 @@ setup(
     ],
     install_requires=[
         'pytz>=2022.5',
+        'requests>=2.27.1',
+        'nordpool>=0.3.3',
     ])
