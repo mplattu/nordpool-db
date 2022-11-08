@@ -14,5 +14,5 @@ setup(
         'nordpool-db',
     ],
     install_requires=[
-        'nordpool==0.3.3',
+        'pytz>=2022.5',
     ])

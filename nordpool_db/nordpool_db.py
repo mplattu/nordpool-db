@@ -2,8 +2,6 @@ import sqlite3
 from datetime import datetime
 import pytz
 
-from nordpool import elspot, elbas
-
 class NordpoolDb:
     sqlite_path = None
     sqlite_con = None
