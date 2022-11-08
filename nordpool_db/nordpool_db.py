@@ -78,15 +78,15 @@ class NordpoolDb:
 
         cursor.execute(sql, (area, datetime_utc_str, datetime_utc_str))
 
-        rows = cursor.fetchall()
-
         price_value = None
 
-        if len(rows) > 1:
-            raise Exception(f'More than one price value ({len(rows)})')
+        row_count = 0
+        for row in cursor:
+            price_value = row[0]
+            row_count += 1
         
-        for this_row in rows:
-            price_value = rows[0][0]
+        if row_count > 1:
+            raise Exception(f'More than one price value ({row_count})')
         
         return price_value
     
