@@ -9,7 +9,7 @@ setup(
     version='0.1.0',
     description='Python library for finding the cheapest hours from Nord Pool spot prices.',
     author='mplattu',
-    url='https://github.com/mplattu/nordpool-db',
+    url='https://github.com/mplattu/nordpool_db',
     packages=[
         'nordpool_db',
     ],
