@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import pytz
 
 from nordpool import elspot
-from nordpool_db import NordpoolDb
+from nordpool_db import nordpool_db
 
 SQLITE_DB = "/tmp/npdb_example.db"
 
@@ -17,7 +17,7 @@ prices_spot = elspot.Prices()
 if os.path.isfile(SQLITE_DB):
     print(f'Warning: Using your existing database at {SQLITE_DB}')
 
-nordpool_db = NordpoolDb(SQLITE_DB)
+nordpool_db = nordpool_db.NordpoolDb(SQLITE_DB)
 tz = pytz.timezone(TZ)
 dt_yesterday = tz.localize(datetime.today()-timedelta(days=1))
 
