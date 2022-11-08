@@ -11,7 +11,7 @@ setup(
     author='mplattu',
     url='https://github.com/mplattu/nordpool-db',
     packages=[
-        'nordpool-db',
+        'nordpool_db',
     ],
     install_requires=[
         'pytz>=2022.5',
